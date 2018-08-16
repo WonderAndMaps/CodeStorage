@@ -1,5 +1,7 @@
 INSTANCE_ID = 'de419661-122d-42cc-8366-8b1fd29f4913'
 
+import time
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from sentinelhub import WmsRequest, WcsRequest, MimeType, CRS, BBox, CustomUrlParam, get_area_dates
@@ -125,37 +127,57 @@ def find_arrival(status):
     return result
 
 def lonlat_to_xy(target_lon,target_lat, lefttoplon,lefttoplat,rightbtmlon,rightbtmlat, fac=100.):
-    map_y = (target_lat-lefttoplat)/(rightbtmlat-lefttoplat)*fac
-    map_x = (target_lon-lefttoplon)/(rightbtmlon-lefttoplon)*fac
-    return map_x,map_y
+    map_y = (target_lat-rightbtmlat)/(lefttoplat-rightbtmlat)*fac
+    map_x = (target_lon-rightbtmlon)/(lefttoplon-rightbtmlon)*fac
+    return 100-map_x,map_y
+
+
+def max_pooling(imgs,x,y):
+    return imgs[:,(x-1):(x+2),(y-1):(y+2)].max(axis=(1,2))
+
+
+
 #=============================================================
 
-lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,time = -102.02986,31.94470,-101.98102,31.92329,('2018-01-01','2018-08-31')
+def find_water_part3(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,target_lons,target_lats):
+    time_start = time.time()
 
-target_lon,target_lat = -101.98795528,31.934979860000002
-mapx,mapy = lonlat_to_xy(target_lon,target_lat,lefttoplon,lefttoplat,rightbtmlon,rightbtmlat)
+    time_int = ('2017-01-01',datetime.datetime.now().strftime('%Y-%m-%d'))
+    
+    imgs_ndwi,imgs_ndwi_dates = get_data(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,time_int)
+    imgs_ndwi = np.asarray(imgs_ndwi)
+    cloud_masks,cloud_dates = get_cloud(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,time_int)
+
+    res = []
+    for (target_lon,target_lat) in zip(target_lons,target_lats):
+        mapx,mapy = lonlat_to_xy(target_lon,target_lat,lefttoplon,lefttoplat,rightbtmlon,rightbtmlat)
+        imgs_ndwi_temp = imgs_ndwi
+        imgs_ndwi_temp[:,int(mapy),int(mapx)] = max_pooling(imgs_ndwi_temp,int(mapy),int(mapx))
+        wc = cloud_masks*10+(imgs_ndwi_temp!=0)
+
+        arrival_ind = find_arrival(wc[:,int(mapy),int(mapx)])
+        if len(arrival_ind)>0 and arrival_ind[0]!=-1:
+            
+            # You can comment the print
+            print(cloud_dates[arrival_ind[0]])
+            res += [cloud_dates[arrival_ind[0]]]
+        else:
+            res+=[0]
+    
+    print("Runtime:",time.time()-time_start,"secs")
+    return res
 
 
-# Preview
-#water_and_cloud_preview(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,time)
 
 
-# Find water arrival date
-imgs_ndwi,imgs_ndwi_dates = get_data(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,time)
-imgs_ndwi = np.asarray(imgs_ndwi)
-cloud_masks,cloud_dates = get_cloud(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,time)
-wc = cloud_masks*10+(imgs_ndwi!=0)
 
-arrival_ind = find_arrival(wc[:,43,27])
-for i in arrival_ind:
-    print(cloud_dates[i])
+# Examples:
+lefttoplon,lefttoplat,rightbtmlon,rightbtmlat = -102.02986,31.94470,-101.98102,31.92329
 
 
-plt.imshow(imgs_ndwi[-1,:,:])
-plt.scatter(274,mapy)
+target_lons = [-102.00319336,-101.9878576,-102.00290032,-102.00143512]
+target_lats = [31.941659780000002,31.939818520000003,31.93682112,31.936350100000002]
 
-imgs_ndwi[5,427,274]
+find_water_part3(lefttoplon,lefttoplat,rightbtmlon,rightbtmlat,target_lons,target_lats)
 
-find_arrival(wc[:,274,int(mapy)])
 
-find_arrival([0,0,1,10,10,1,1,1,1,0,0,0,10,11,10,11,10,0,1])
