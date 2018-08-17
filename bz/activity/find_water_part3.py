@@ -114,10 +114,10 @@ def find_arrival(status):
     
     if no_cloud_obs[0]==1:
         print("It is there since the beginning.")
-        return -1
+        return [-1]
     if len(no_cloud_obs)==1:
         print("There is only one no-cloud observation.")
-        return -1
+        return [-1]
 
     prev_obs = np.concatenate((np.zeros(1),obs[:-1])).astype(np.int32)
     result = np.array(np.where(( (obs-prev_obs)==1) * (obs<10) ))[0].tolist()
