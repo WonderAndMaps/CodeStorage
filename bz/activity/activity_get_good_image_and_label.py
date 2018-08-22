@@ -12,6 +12,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
+import pandas as pd
 
 
 def recursiveSearchFiles(dirPath, partFileInfo): 
@@ -73,14 +74,14 @@ def getGoodImg(img_list):
             pad_num[i] = getPadNumber(img_list[i])
             week_of[i] = getWeek(img_list[i])
             
-        if i%100==0:
+        if i%500==0:
             print('Done iter',i)
             #gc.collect()
 
     return good_img_list,pad_num,week_of
 
 
-dirPath = 'F:/Dropbox (Bazean)/sky_obs'
+dirPath = 'F:/sky_obs'
 img_list = recursiveSearchFiles(dirPath, '*.tif')
 
 
@@ -97,3 +98,17 @@ img_list = recursiveSearchFiles(dirPath, '*.tif')
 # Too bright: 80% >200; Too dark: 40% <50...looks reasonable
 # Obtain week and pad number for each image so that its label can be found
 img_list_good,pad_num,week_of = getGoodImg(img_list)
+img_list_good = [_ for _ in img_list_good if _!=[]]
+pad_num = [_ for _ in pad_num if _!=[]]
+week_of = [_ for _ in week_of if _!=[]]
+img_df = pd.DataFrame(data=None)
+img_df['img_path'] = img_list_good
+img_df['pad_number'] = pad_num
+img_df['week_of'] = week_of
+img_df['pad_number'] = img_df['pad_number'].apply(pd.to_numeric)
+      
+
+
+label_raw = pd.read_csv(dirPath+'/sky_obs_labels_raw.csv')
+labels = pd.merge(img_df, label_raw, on=['pad_number','week_of'], how='inner').dropna(axis=0)
+labels[['img_path','activity']].to_csv(dirPath+'/sky_obs_labels.csv')
