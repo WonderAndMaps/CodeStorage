@@ -11,7 +11,7 @@ import os
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
-
+import datetime
 
 
 def recursiveSearchFiles(dirPath, partFileInfo): 
@@ -28,26 +28,6 @@ def recursiveSearchFiles(dirPath, partFileInfo):
 
 
 
-def plotPreviews(data, dates, cols = 4, figsize=(15,15), denom=255.):
-    """
-    Utility to plot small "true color" previews.
-    """
-    width = data[-1].shape[1]
-    height = data[-1].shape[0]
-    
-    rows = data.shape[0] // cols + (1 if data.shape[0] % cols else 0)
-    fig, axs = plt.subplots(nrows=rows, ncols=cols, figsize=figsize)
-    for index, ax in enumerate(axs.flatten()):
-        if index < data.shape[0]:
-            caption = str(index)+': '+str(dates[index])
-            #ax.set_axis_off()
-            ax.imshow(data[index] / denom, vmin=0.0, vmax=1.0)
-            ax.text(0, -2, caption, fontsize=12, color='g')
-        else:
-            ax.set_axis_off()
-
-
-
 def loadGrayImage(idxs,img_list,width,height):
     imgs = np.zeros([len(idxs),width,height])
     for i in range(len(idxs)):
@@ -56,10 +36,7 @@ def loadGrayImage(idxs,img_list,width,height):
     return imgs
 
 
-
-
 def hist(img):
-	#hist = cv.calcHist([img],[0],None,[256],[0,256])
 	plt.subplot(121)
 	plt.imshow(img,'gray')
 	plt.xticks([])
@@ -70,25 +47,53 @@ def hist(img):
 	plt.show()
 
 
+def getPadNumber(img_path):
+    return os.path.basename(os.path.abspath(os.path.join(img_path,"..")))
+
+def getWeek(img_path):
+    timestr = os.path.basename(os.path.abspath(os.path.join(img_path,"../../.."))) # week of
+    return datetime.datetime.strptime(timestr,'%Y%m%d').strftime('%Y-%m-%d')
+
+def getGoodImg(img_list):
+    pad_num = [[] for i in range(len(img_list))]
+    week_of = [[] for i in range(len(img_list))]
+    good_img_list = [[] for i in range(len(img_list))]
+    for i in range(len(img_list)):
+        try:
+            img = loadGrayImage([i],img_list,64,64)
+        except:
+            print('Something wrong here:',i)
+            continue
+        
+        if (img>200).mean()>0.8 or (img<50).mean()>0.4:
+            #os.remove(img_list[i])
+            pass
+        else:
+            good_img_list[i] = img_list[i]
+            pad_num[i] = getPadNumber(img_list[i])
+            week_of[i] = getWeek(img_list[i])
+            
+        if i%100==0:
+            print('Done iter',i)
+            #gc.collect()
+
+    return good_img_list,pad_num,week_of
 
 
-dirPath = 'F:/Dropbox (Bazean)/20180813/imgs'
+dirPath = 'F:/Dropbox (Bazean)/sky_obs'
 img_list = recursiveSearchFiles(dirPath, '*.tif')
 
-imgs = loadGrayImage([i for i in range(30,40)],img_list,64,64)
+
+
+#imgs = loadGrayImage([i for i in range(30,40)],img_list,64,64)
 #plotPreviews(imgs,[i for i in range(10,20)])
 
-for img in imgs:
-    hist(img)
-    print('Over 200: ',(img>200).mean())
-    print('Less 50: ',(img<50).mean())
+#for img in imgs:
+#    hist(img)
+#    print('Over 200: ',(img>200).mean())
+#    print('Less 50: ',(img<50).mean())
     
     
 # Too bright: 80% >200; Too dark: 40% <50...looks reasonable
-
-
 # Obtain week and pad number for each image so that its label can be found
-
-
-
-
+img_list_good,pad_num,week_of = getGoodImg(img_list)
