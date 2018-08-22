@@ -60,8 +60,10 @@ ds_trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224
 train_ds = planetDataset(train, transform=ds_trans)
 valid_ds = planetDataset(valid, transform=ds_trans)
 
-train_dl = DataLoader(train_ds, batch_size=4, shuffle=True)
-valid_dl = DataLoader(valid_ds, batch_size=4, shuffle=True)
+train_dl = DataLoader(train_ds, batch_size=32, shuffle=True)
+valid_dl = DataLoader(valid_ds, batch_size=32, shuffle=True)
+
+dloaders = {'train':train_dl, 'valid':valid_dl}
 
 '''
 def imshow(axis, inp):
@@ -98,13 +100,18 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
             if phase == 'train':
                 scheduler.step()
                 model.train(True)
+                print('Training')
             else:
                 model.train(False)
+                print('Validating')
 
             running_loss = 0.0
             running_corrects = 0
 
+            count = 0
             for inputs, labels in dataloders[phase]:
+                count += 1
+                print('Done',round(count/len(dataloders[phase])*100,2),'%')
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
                 else:
@@ -168,6 +175,5 @@ criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=0.001, momentum=0.9)
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-dloaders = {'train':train_dl, 'valid':valid_dl}
 
 model = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
