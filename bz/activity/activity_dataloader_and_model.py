@@ -111,7 +111,9 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
             count = 0
             for inputs, labels in dataloders[phase]:
                 count += 1
-                print('Done',round(count/len(dataloders[phase])*100,2),'%')
+                if count%50 ==0:
+                    print('Done',round(count/len(dataloders[phase])*100,2),'%')
+                    print('Accuracy',running_corrects.type(torch.FloatTensor)/inputs.size(0)/count)
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
                 else:
@@ -128,17 +130,18 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
 
                 if phase == 'train':
                     loss.backward()
-                    optimizer.step()
+                    optimizer.step()  # Does the update
 
-                running_loss += loss.data[0]
+                #running_loss += loss.data[0]
+                running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
             
             if phase == 'train':
                 train_epoch_loss = running_loss / dataset_sizes[phase]
-                train_epoch_acc = running_corrects / dataset_sizes[phase]
+                train_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
             else:
                 valid_epoch_loss = running_loss / dataset_sizes[phase]
-                valid_epoch_acc = running_corrects / dataset_sizes[phase]
+                valid_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
                 
             if phase == 'valid' and valid_epoch_acc > best_acc:
                 best_acc = valid_epoch_acc
@@ -173,7 +176,7 @@ if use_gpu:
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=0.001, momentum=0.9)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.01)
 
 
 model = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
