@@ -100,10 +100,10 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
             if phase == 'train':
                 scheduler.step()
                 model.train(True)
-                print('Training')
+                print('Start training!')
             else:
                 model.train(False)
-                print('Validating')
+                print('Start validating')
 
             running_loss = 0.0
             running_corrects = 0
@@ -114,8 +114,7 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
                 count += 1
                 if count%50 ==0:
                     print('Done',count,'/',len(dataloders[phase]))
-                    print('Loss',running_loss/num_of_samples)
-                    print('Accuracy',running_corrects.type(torch.FloatTensor).numpy()/num_of_samples)
+                    print('Running acc',running_corrects.type(torch.FloatTensor).numpy()/num_of_samples)
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
                 else:
@@ -252,4 +251,27 @@ torch.save(model3, data_dir+'/resnet34_180824.pkl')
 # see another file
 
 
-#=========================
+#==================================================resnet152
+resnet = models.resnet152(pretrained=True)
+# freeze all model parameters
+for param in resnet.parameters():
+    param.requires_grad = False
+
+# new final layer with 2 classes
+num_ftrs = resnet.fc.in_features
+resnet.fc = torch.nn.Linear(num_ftrs, 2)
+
+use_gpu = torch.cuda.is_available()
+if use_gpu:
+    resnet = resnet.cuda()
+
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=1e-3, momentum=0.9)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+
+
+model1 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
+
+# Save model
+torch.save(model1, data_dir+'/resnet152_180825.pkl')
+#0.79

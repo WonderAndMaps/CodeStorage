@@ -103,14 +103,14 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
                      'valid': len(dataloders['valid'].dataset)}
 
     for epoch in range(num_epochs):
-        for phase in ['train', 'valid']:
+        for phase in ['train','valid']:
             if phase == 'train':
                 scheduler.step()
                 model.train(True)
-                print('Training')
+                print('Start training!')
             else:
                 model.train(False)
-                print('Validating')
+                print('Start validating!')
 
             running_loss = 0.0
             running_corrects = 0
@@ -121,8 +121,7 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
                 count += 1
                 if count%50 ==0:
                     print('Done',count,'/',len(dataloders[phase]))
-                    print('Loss',running_loss/num_of_samples)
-                    print('Accuracy',running_corrects.type(torch.FloatTensor).numpy()/num_of_samples)
+                    print('Running acc',running_corrects.type(torch.FloatTensor).numpy()/num_of_samples)
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
                 else:
@@ -131,12 +130,15 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
                 optimizer.zero_grad()
 
                 outputs = model(inputs)
-                _, preds = torch.max(outputs[0], 1)
-                
                 labels = labels.type(torch.LongTensor)
                 
-                loss = criterion(outputs[0], labels)
-
+                try:
+                    _, preds = torch.max(outputs[0], 1)
+                    loss = criterion(outputs[0], labels)
+                except:
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+                    
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()  # Does the update
@@ -187,7 +189,7 @@ if use_gpu:
     incept = incept.cuda()
 
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(incept.fc.parameters(), lr=1e-3, momentum=0.9)
+optimizer = torch.optim.SGD(incept.fc.parameters(), lr=4e-3, momentum=0.9)
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
