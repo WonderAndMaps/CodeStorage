@@ -113,8 +113,9 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
             for inputs, labels in dataloders[phase]:
                 count += 1
                 if count%50 ==0:
-                    print('Done',round(count/len(dataloders[phase])*100,2),'%')
-                    print('Accuracy',running_corrects.type(torch.FloatTensor)/num_of_samples)
+                    print('Done',count,'/',len(dataloders[phase]))
+                    print('Loss',running_loss/num_of_samples)
+                    print('Accuracy',running_corrects.type(torch.FloatTensor).numpy()/num_of_samples)
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
                 else:
@@ -123,11 +124,14 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
                 optimizer.zero_grad()
 
                 outputs = model(inputs)
-                _, preds = torch.max(outputs.data, 1)
-                
                 labels = labels.type(torch.LongTensor)
-                
-                loss = criterion(outputs, labels)
+
+                try:
+                    _, preds = torch.max(outputs.data, 1)
+                    loss = criterion(outputs, labels)
+                except:
+                    _, preds = torch.max(outputs[0], 1)
+                    loss = criterion(outputs[0], labels)
 
                 if phase == 'train':
                     loss.backward()
@@ -177,7 +181,7 @@ if use_gpu:
     resnet = resnet.cuda()
 
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=5e-3, momentum=0.9)
+optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=1e-3, momentum=0.9)
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
@@ -245,37 +249,7 @@ torch.save(model3, data_dir+'/resnet34_180824.pkl')
 
 
 #======================================Inception 3*299*299
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
-ds_trans = transforms.Compose([transforms.Resize(299), transforms.CenterCrop(299), transforms.ToTensor(), normalize])
-    
-train_ds = planetDataset(train, transform=ds_trans)
-valid_ds = planetDataset(valid, transform=ds_trans)
-
-train_dl = DataLoader(train_ds, batch_size=16, shuffle=True)
-valid_dl = DataLoader(valid_ds, batch_size=16, shuffle=True)
-
-dloaders = {'train':train_dl, 'valid':valid_dl}
+# see another file
 
 
-incept = models.inception_v3(pretrained=True)
-# freeze all model parameters
-for param in incept.parameters():
-    param.requires_grad = False
-
-# new final layer with 2 classes
-num_ftrs = incept.fc.in_features
-incept.fc = torch.nn.Linear(num_ftrs, 2)
-
-use_gpu = torch.cuda.is_available()
-if use_gpu:
-    incept = incept.cuda()
-
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(incept.fc.parameters(), lr=1e-3, momentum=0.9)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-
-
-model4 = train_model(dloaders, incept, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
-
-# Save model
-torch.save(model4, data_dir+'/resnet34_180824.pkl')
+#=========================

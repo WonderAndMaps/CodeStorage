@@ -120,8 +120,9 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
             for inputs, labels in dataloders[phase]:
                 count += 1
                 if count%50 ==0:
-                    print('Done',round(count/len(dataloders[phase])*100,2),'%')
-                    print('Accuracy',running_corrects.type(torch.FloatTensor)/num_of_samples)
+                    print('Done',count,'/',len(dataloders[phase]))
+                    print('Loss',running_loss/num_of_samples)
+                    print('Accuracy',running_corrects.type(torch.FloatTensor).numpy()/num_of_samples)
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
                 else:
