@@ -20,6 +20,7 @@ from torch.autograd import Variable
 import torch
 from torch.optim import lr_scheduler
 
+np.random.seed(666)
 
 #=======================================Data loader part
 class planetDataset(Dataset):
@@ -123,14 +124,10 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
                 optimizer.zero_grad()
 
                 outputs = model(inputs)
-                labels = labels.type(torch.LongTensor)
+                labels = labels.type(torch.cuda.LongTensor)
 
-                try:
-                    _, preds = torch.max(outputs.data, 1)
-                    loss = criterion(outputs, labels)
-                except:
-                    _, preds = torch.max(outputs[0], 1)
-                    loss = criterion(outputs[0], labels)
+                _, preds = torch.max(outputs.data, 1)
+                loss = criterion(outputs, labels)
 
                 if phase == 'train':
                     loss.backward()
@@ -181,14 +178,15 @@ if use_gpu:
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=1e-3, momentum=0.9)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
 
-model1 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
+model1 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
 
 # Save model
 torch.save(model1, data_dir+'/resnet50_180822.pkl')
-#0.79
+#0.789702
+
 
 # Load model
 #the_model = torch.load(PATH)
@@ -210,15 +208,14 @@ if use_gpu:
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(densenet.classifier.parameters(), lr=1e-3, momentum=0.9)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
 
-model2 = train_model(dloaders, densenet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
+model2 = train_model(dloaders, densenet, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
 
 # Save model
 torch.save(model2, data_dir+'/densenet161_180823.pkl')
-#0.79355
-
+#0.788258
 
 #=======================================ResNet-34
 resnet = models.resnet34(pretrained=True)
@@ -236,14 +233,14 @@ if use_gpu:
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=1e-3, momentum=0.9)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
 
-model3 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
+model3 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
 
 # Save model
 torch.save(model3, data_dir+'/resnet34_180824.pkl')
-#0.768
+#0.785611
 
 
 
@@ -267,11 +264,62 @@ if use_gpu:
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(resnet.fc.parameters(), lr=1e-3, momentum=0.9)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
 
-model1 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
+model5 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
 
 # Save model
-torch.save(model1, data_dir+'/resnet152_180825.pkl')
-#0.79
+torch.save(model5, data_dir+'/resnet152_180825.pkl')
+#0.789702
+
+#=======================================vgg19bn
+vgg = models.vgg19_bn(pretrained=True)
+
+for param in vgg.parameters():
+    param.requires_grad = False
+
+# new final layer with 2 classes
+num_ftrs = vgg.classifier[6].in_features
+vgg.classifier[6] = torch.nn.Linear(num_ftrs, 2)
+
+use_gpu = torch.cuda.is_available()
+if use_gpu:
+    vgg = vgg.cuda()
+
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(vgg.classifier[6].parameters(), lr=1e-3, momentum=0.9)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+
+
+model6 = train_model(dloaders, vgg, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
+
+# Save model
+torch.save(model6, data_dir+'/vgg19bn_180825.pkl')
+#0.779115
+
+
+#==================================================densenet201
+densenet = models.densenet201(pretrained=True)
+# freeze all model parameters
+for param in densenet.parameters():
+    param.requires_grad = False
+
+# new final layer with 2 classes
+num_ftrs = densenet.classifier.in_features
+densenet.classifier = torch.nn.Linear(num_ftrs, 2)
+
+use_gpu = torch.cuda.is_available()
+if use_gpu:
+    densenet = densenet.cuda()
+
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(densenet.classifier.parameters(), lr=1e-3, momentum=0.9)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+
+
+model7 = train_model(dloaders, densenet, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
+
+# Save model
+torch.save(model7, data_dir+'/densenet201_180825.pkl')
+#0.791627

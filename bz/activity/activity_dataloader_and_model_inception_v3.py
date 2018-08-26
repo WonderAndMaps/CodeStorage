@@ -130,7 +130,7 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
                 optimizer.zero_grad()
 
                 outputs = model(inputs)
-                labels = labels.type(torch.LongTensor)
+                labels = labels.type(torch.cuda.LongTensor)
                 
                 try:
                     _, preds = torch.max(outputs[0], 1)
@@ -197,3 +197,4 @@ model4 = train_model_inception_v3(dloaders, incept, criterion, optimizer, exp_lr
 
 # Save model
 torch.save(model4, data_dir+'/inceptionv3_180824.pkl')
+#0.74
