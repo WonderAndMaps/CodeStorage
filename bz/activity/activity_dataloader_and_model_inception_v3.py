@@ -114,6 +114,7 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
 
             running_loss = 0.0
             running_corrects = 0
+            running_true_neg = 0
 
             count = 0
             num_of_samples = 0
@@ -147,25 +148,29 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
                 num_of_samples += inputs.size(0)
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
+                running_true_neg += torch.sum(preds[labels.data==1] == 0)
             
             if phase == 'train':
                 train_epoch_loss = running_loss / dataset_sizes[phase]
                 train_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
+                train_epoch_true_neg = running_true_neg.type(torch.FloatTensor) / dataset_sizes[phase]
             else:
                 valid_epoch_loss = running_loss / dataset_sizes[phase]
                 valid_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
-                
+                valid_epoch_true_neg = running_true_neg.type(torch.FloatTensor) / dataset_sizes[phase]
+
             if phase == 'valid' and valid_epoch_acc > best_acc:
                 best_acc = valid_epoch_acc
+                type_II = valid_epoch_true_neg
                 best_model_wts = model.state_dict()
 
-        print('Epoch [{}/{}] train loss: {:.4f} acc: {:.4f} ' 
-              'valid loss: {:.4f} acc: {:.4f}'.format(
+        print('Epoch [{}/{}] train loss: {:.4f} acc: {:.4f} type II: {:.4f} ' 
+              'valid loss: {:.4f} acc: {:.4f} type II: {:.4f}'.format(
                 epoch, num_epochs - 1,
-                train_epoch_loss, train_epoch_acc, 
-                valid_epoch_loss, valid_epoch_acc))
+                train_epoch_loss, train_epoch_acc, train_epoch_true_neg,
+                valid_epoch_loss, valid_epoch_acc, valid_epoch_true_neg))
             
-    print('Best val Acc: {:4f}'.format(best_acc))
+    print('Best val Acc: {:4f} and its type II: {:4f}'.format(best_acc,type_II))
     print('Time spent:',time.time()-since,'s')
 
     model.load_state_dict(best_model_wts)
@@ -197,4 +202,4 @@ model4 = train_model_inception_v3(dloaders, incept, criterion, optimizer, exp_lr
 
 # Save model
 torch.save(model4, data_dir+'/inceptionv3_180824.pkl')
-#0.74
+#0.755775
