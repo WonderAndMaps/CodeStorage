@@ -108,10 +108,11 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
 
             running_loss = 0.0
             running_corrects = 0
-            running_true_neg = 0
+            running_false_neg = 0
 
             count = 0
             num_of_samples = 0
+            num_of_pos = 0
             for inputs, labels in dataloders[phase]:
                 count += 1
                 if count%50 ==0:
@@ -136,29 +137,30 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
 
                 #running_loss += loss.data[0]
                 num_of_samples += inputs.size(0)
+                num_of_pos += torch.sum(labels.data==1).type(torch.FloatTensor)
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-                running_true_neg += torch.sum(preds[labels.data==1] == 0)
+                running_false_neg += torch.sum(preds[labels.data==1] == 0)
             
             if phase == 'train':
                 train_epoch_loss = running_loss / dataset_sizes[phase]
                 train_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
-                train_epoch_true_neg = running_true_neg.type(torch.FloatTensor) / dataset_sizes[phase]
+                train_epoch_false_neg = running_false_neg.type(torch.FloatTensor) / num_of_pos
             else:
                 valid_epoch_loss = running_loss / dataset_sizes[phase]
                 valid_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
-                valid_epoch_true_neg = running_true_neg.type(torch.FloatTensor) / dataset_sizes[phase]
+                valid_epoch_false_neg = running_false_neg.type(torch.FloatTensor) / num_of_pos
                 
             if phase == 'valid' and valid_epoch_acc > best_acc:
                 best_acc = valid_epoch_acc
-                type_II = valid_epoch_true_neg
+                type_II = valid_epoch_false_neg
                 best_model_wts = model.state_dict()
 
-        print('Epoch [{}/{}] train loss: {:.4f} acc: {:.4f} type II: {:.4f} ' 
+        print('Epoch [{}/{}] \n train loss: {:.4f} acc: {:.4f} type II: {:.4f} \n' 
               'valid loss: {:.4f} acc: {:.4f} type II: {:.4f}'.format(
                 epoch, num_epochs - 1,
-                train_epoch_loss, train_epoch_acc, train_epoch_true_neg,
-                valid_epoch_loss, valid_epoch_acc, valid_epoch_true_neg))
+                train_epoch_loss, train_epoch_acc, train_epoch_false_neg,
+                valid_epoch_loss, valid_epoch_acc, valid_epoch_false_neg))
             
     print('Best val Acc: {:4f} and its type II: {:4f}'.format(best_acc,type_II))
     print('Time spent:',time.time()-since,'s')
@@ -166,6 +168,51 @@ def train_model(dataloders, model, criterion, optimizer, scheduler, num_epochs=2
     model.load_state_dict(best_model_wts)
     return model
 
+def false_neg(dataloders, model):
+    since = time.time()
+    use_gpu = torch.cuda.is_available()
+    dataset_sizes = {'train': len(dataloders['train'].dataset), 
+                     'valid': len(dataloders['valid'].dataset)}
+
+    running_corrects = 0
+    running_false_neg = 0
+    running_false_pos = 0
+
+    count = 0
+    num_of_samples = 0
+    num_of_pos = 0
+    for inputs, labels in dataloders['valid']:
+        count += 1
+        if use_gpu:
+            inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        else:
+            inputs, labels = Variable(inputs), Variable(labels)
+
+
+        outputs = model(inputs)
+        labels = labels.type(torch.cuda.LongTensor)
+
+        _, preds = torch.max(outputs.data, 1)
+
+
+        num_of_samples += inputs.size(0)
+        num_of_pos += torch.sum(labels.data==1).type(torch.FloatTensor)
+        running_corrects += torch.sum(preds == labels.data)
+        running_false_neg += torch.sum(preds[labels.data==1] == 0)
+        running_false_pos += torch.sum(preds[labels.data==0] == 1)
+            
+    valid_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes['valid']
+    valid_epoch_false_neg = running_false_neg.type(torch.FloatTensor) / num_of_pos
+    valid_epoch_false_pos = running_false_pos.type(torch.FloatTensor) / (num_of_samples-num_of_pos)                                
+            
+    print('Val Acc: {:4f}'.format(valid_epoch_acc))
+    print('Type II: {:4f}'.format(valid_epoch_false_neg))
+    print('Type I: {:4f}'.format(valid_epoch_false_pos))
+    print('Time spent:',time.time()-since,'s')
+    return None
+
+
+#===============================================================training models
 
 #==================================================resnet50
 resnet = models.resnet50(pretrained=True)
@@ -195,6 +242,8 @@ torch.save(model1, data_dir+'/resnet50_180822.pkl')
 
 # Load model
 #the_model = torch.load(PATH)
+model1 = torch.load(data_dir+'/resnet50_180822.pkl')
+false_neg(dloaders,model1)
 
 
 #==================================================densenet161
@@ -222,6 +271,11 @@ model2 = train_model(dloaders, densenet, criterion, optimizer, exp_lr_scheduler,
 torch.save(model2, data_dir+'/densenet161_180823.pkl')
 #0.788258
 
+model2 = torch.load(data_dir+'/densenet161_180823.pkl')
+false_neg(dloaders,model2)
+
+
+
 #=======================================ResNet-34
 resnet = models.resnet34(pretrained=True)
 # freeze all model parameters
@@ -247,7 +301,8 @@ model3 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, n
 torch.save(model3, data_dir+'/resnet34_180824.pkl')
 #0.785611
 
-
+model3 = torch.load(data_dir+'/resnet34_180824.pkl')
+false_neg(dloaders,model3)
 
 #======================================Inception 3*299*299
 # see another file
@@ -278,6 +333,9 @@ model5 = train_model(dloaders, resnet, criterion, optimizer, exp_lr_scheduler, n
 torch.save(model5, data_dir+'/resnet152_180825.pkl')
 #0.789702
 
+model5 = torch.load(data_dir+'/resnet152_180825.pkl')
+false_neg(dloaders,model5)
+
 #=======================================vgg19bn
 vgg = models.vgg19_bn(pretrained=True)
 
@@ -304,6 +362,9 @@ torch.save(model6, data_dir+'/vgg19bn_180825.pkl')
 #0.779115
 
 
+model6 = torch.load(data_dir+'/vgg19bn_180825.pkl')
+false_neg(dloaders,model6)
+
 #==================================================densenet201
 densenet = models.densenet201(pretrained=True)
 # freeze all model parameters
@@ -328,3 +389,7 @@ model7 = train_model(dloaders, densenet, criterion, optimizer, exp_lr_scheduler,
 # Save model
 torch.save(model7, data_dir+'/densenet201_180825.pkl')
 #0.791627
+
+
+model7 = torch.load(data_dir+'/densenet201_180825.pkl')
+false_neg(dloaders,model7)

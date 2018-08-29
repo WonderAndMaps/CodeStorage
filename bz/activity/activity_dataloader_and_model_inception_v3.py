@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 24 09:38:04 2018
-
-@author: dell
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Created on Wed Aug 22 09:48:42 2018
 
 @author: yang
@@ -27,6 +20,7 @@ from torch.autograd import Variable
 import torch
 from torch.optim import lr_scheduler
 
+np.random.seed(666)
 
 #=======================================Data loader part
 class planetDataset(Dataset):
@@ -114,10 +108,11 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
 
             running_loss = 0.0
             running_corrects = 0
-            running_true_neg = 0
+            running_false_neg = 0
 
             count = 0
             num_of_samples = 0
+            num_of_pos = 0
             for inputs, labels in dataloders[phase]:
                 count += 1
                 if count%50 ==0:
@@ -146,29 +141,30 @@ def train_model_inception_v3(dataloders, model, criterion, optimizer, scheduler,
 
                 #running_loss += loss.data[0]
                 num_of_samples += inputs.size(0)
+                num_of_pos += torch.sum(labels.data==1).type(torch.FloatTensor)
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-                running_true_neg += torch.sum(preds[labels.data==1] == 0)
+                running_false_neg += torch.sum(preds[labels.data==1] == 0)
             
             if phase == 'train':
                 train_epoch_loss = running_loss / dataset_sizes[phase]
                 train_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
-                train_epoch_true_neg = running_true_neg.type(torch.FloatTensor) / dataset_sizes[phase]
+                train_epoch_false_neg = running_false_neg.type(torch.FloatTensor) / num_of_pos
             else:
                 valid_epoch_loss = running_loss / dataset_sizes[phase]
                 valid_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes[phase]
-                valid_epoch_true_neg = running_true_neg.type(torch.FloatTensor) / dataset_sizes[phase]
+                valid_epoch_false_neg = running_false_neg.type(torch.FloatTensor) / num_of_pos
 
             if phase == 'valid' and valid_epoch_acc > best_acc:
                 best_acc = valid_epoch_acc
-                type_II = valid_epoch_true_neg
+                type_II = valid_epoch_false_neg
                 best_model_wts = model.state_dict()
 
-        print('Epoch [{}/{}] train loss: {:.4f} acc: {:.4f} type II: {:.4f} ' 
+        print('Epoch [{}/{}] \n train loss: {:.4f} acc: {:.4f} type II: {:.4f} \n' 
               'valid loss: {:.4f} acc: {:.4f} type II: {:.4f}'.format(
                 epoch, num_epochs - 1,
-                train_epoch_loss, train_epoch_acc, train_epoch_true_neg,
-                valid_epoch_loss, valid_epoch_acc, valid_epoch_true_neg))
+                train_epoch_loss, train_epoch_acc, train_epoch_false_neg,
+                valid_epoch_loss, valid_epoch_acc, valid_epoch_false_neg))
             
     print('Best val Acc: {:4f} and its type II: {:4f}'.format(best_acc,type_II))
     print('Time spent:',time.time()-since,'s')
@@ -194,12 +190,12 @@ if use_gpu:
     incept = incept.cuda()
 
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(incept.fc.parameters(), lr=4e-3, momentum=0.9)
+optimizer = torch.optim.SGD(incept.fc.parameters(), lr=1e-3, momentum=0.9)
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
-model4 = train_model_inception_v3(dloaders, incept, criterion, optimizer, exp_lr_scheduler, num_epochs=2)
+model4 = train_model_inception_v3(dloaders, incept, criterion, optimizer, exp_lr_scheduler, num_epochs=20)
 
 # Save model
 torch.save(model4, data_dir+'/inceptionv3_180824.pkl')
-#0.755775
+#0.775746
