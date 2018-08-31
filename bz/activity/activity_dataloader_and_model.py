@@ -200,6 +200,8 @@ def false_neg(dataloders, model):
         running_corrects += torch.sum(preds == labels.data)
         running_false_neg += torch.sum(preds[labels.data==1] == 0)
         running_false_pos += torch.sum(preds[labels.data==0] == 1)
+        
+        #print([name for name,p,l in zip(fullname,preds.tolist(),labels.tolist()) if p==0 and l==1])
             
     valid_epoch_acc = running_corrects.type(torch.FloatTensor) / dataset_sizes['valid']
     valid_epoch_false_neg = running_false_neg.type(torch.FloatTensor) / num_of_pos
