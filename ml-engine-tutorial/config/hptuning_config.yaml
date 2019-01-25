@@ -1,0 +1,24 @@
+trainingInput:
+  scaleTier: CUSTOM
+  masterType: large_model
+  workerType: standard_p100
+  parameterServerType: standard
+  workerCount: 3
+  parameterServerCount: 3
+  hyperparameters:
+    goal: MAXIMIZE
+    hyperparameterMetricTag: DetectionBoxes_Precision/mAP
+    maxTrials: 3
+    maxParallelTrials: 3
+    enableTrialEarlyStopping: True
+    params:
+    - parameterName: num_train_steps
+      type: DISCRETE
+      discreteValues:
+      - 300000
+    - parameterName: hparams_overrides
+      type: CATEGORICAL
+      categoricalValues:
+      - learning_rate=0.0003,batch_size=1
+      - learning_rate=0.0003,batch_size=2
+      - learning_rate=0.003,batch_size=2
