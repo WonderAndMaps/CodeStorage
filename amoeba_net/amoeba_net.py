@@ -361,7 +361,7 @@ def main(_):
   exclusions = []
   if FLAGS.checkpoint_exclude_scopes:
     exclusions = [scope.strip() for scope in FLAGS.checkpoint_exclude_scopes.split(',')]
-    exclusions.join("|")
+    exclusions = "|".join(exclusions)
   # Use warm-start to initialize weights
   # Use regexp to exclude scopes to retore - usually final_layer|aux
   ws = tf.estimator.WarmStartSettings(ckpt_to_initialize_from=checkpoint_path,
