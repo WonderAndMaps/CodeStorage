@@ -5,6 +5,8 @@ be cited as: Real, E., Aggarwal, A., Huang, Y. and Le, Q.V., 2018. Regularized
 Evolution for Image Classifier Architecture Search. arXiv preprint
 arXiv:1802.01548.
 
+This code is modified by Yang Fu to enable fine-tuning
+
 
 ## Acknowledgements
 
