@@ -1,0 +1,97 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: mlman-ccth-dev-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlman-ccth-dev
+  template:
+    metadata:
+      labels:
+        app: mlman-ccth-dev
+    spec:
+      containers:
+      - name: mlman-ccth-dev
+        image: clobotics.azurecr.io/mlman:gpu-base-tf1.11-v1.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        env:
+        - name: MLMAN_DEBUG
+          value: '1'
+        - name: LD_LIBRARY_PATH
+          value: /usr/lib/nvidia:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64/:/usr/local/cuda/targets/x86_64-linux/lib/
+        - name: FILEMAN_URL
+          value: http://fileman.clobotics.cn/api/file/
+        - name: WEBSITE_SITE_NAME
+          value: mlman-ccth-dev
+        - name: MLMAN_UNIT_CONFIG_PATH
+          value: /mnt/azure/models/deployments/ccth_20190326/unit.prototxt
+        - name: MLMAN_SKU_CONFIG_PATH
+          value: /mnt/azure/models/deployments/ccth_20190326/sku.prototxt
+        - name: MLMAN_SCENE_CONFIG_PATH
+          value: /mnt/azure/models/deployments/ccth_20190326/scene.prototxt
+        - name: MLMAN_FRIDGE_PIPELINE_CONFIG_PATH
+          value: /mnt/azure/models/deployments/ccth_20190326/fridge_pipeline.prototxt
+        - name: MLMAN_SHELF_PIPELINE_CONFIG_PATH
+          value: /mnt/azure/models/deployments/ccth_20190326/shelf_pipeline.prototxt
+        - name: MLMAN_DEFAULT_PIPELINE_CONFIG_PATH
+          value: /mnt/azure/models/deployments/ccth_20190326/shelf_pipeline.prototxt
+        - name: PRE_SHELL
+          value: /mnt/azure/models/deployments/ccth_20190326/prestart.sh
+        - name: MODEL_NAME
+          value: mlman
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+          requests: 
+            nvidia.com/gpu: 1
+        volumeMounts:
+        - name: modelfileshare
+          mountPath: /mnt/azure/models
+        - name: nvidia
+          mountPath: /usr/local/nvidia
+        - name: auxfileshare
+          mountPath: /mnt/aux
+      volumes:
+        - name: nvidia
+          hostPath:
+            path: /usr/local/nvidia
+        - name: modelfileshare
+          azureFile:
+            secretName: azure-secret
+            shareName: models
+            readOnly: true
+        - name: auxfileshare
+          azureFile:
+            secretName: azure-secret
+            shareName: aux
+      imagePullSecrets:
+      - name: acr-auth
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlman-ccth-dev
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 13.72.110.20
+  ports:
+  - port: 80
+  selector:
+    app: mlman-ccth-dev
+# ---
+# apiVersion: autoscaling/v1
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: mlman-dev-scaler
+# spec:
+#   scaleTargetRef:
+#     kind: Deployment
+#     name: mlman-dev-deployment
+#   minReplicas: 1
+#   maxReplicas: 10
+#   targetCPUUtilizationPercentage: 50
